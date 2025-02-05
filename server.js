@@ -413,6 +413,107 @@ let db;
 let client;
 
 
+  app.get('/api/products/:id/quantity', async (req, res) => {
+    const { id } = req.params;
+    // console.log(`Received request to fetch quantity for product: ${id}`);
+    
+    try {
+        const db = await getDatabase(); // Connect to the database
+        const product = await db.collection('products').findOne({ productId: id });
+
+        if (product) {
+            // Product found, return the quantity
+            return res.json({ quantity: product.quantity });
+        } else {
+            // Product not found, return 404
+            return res.status(404).json({ error: `Product with ID ${id} not found` });
+        }
+    } catch (err) {
+        console.error("Error fetching product:", err);
+        return res.status(500).json({ error: "Server error while fetching product data" });
+    }
+  });
+
+  app.get('/api/products', async (req, res) => {
+    try {
+        const db = await getDatabase(); // Ensure database connection
+        const products = await db.collection('products').find({}).toArray();
+
+        if (products.length > 0) {
+            return res.json({ products });
+        } else {
+            return res.status(404).json({ error: "No products found" });
+        }
+    } catch (err) {
+        console.error("Error fetching products:", err);
+        return res.status(500).json({ error: "Server error while fetching products" });
+    }
+});
+
+app.post("/api/products/update", async (req, res) => {
+  const { productId, quantity } = req.body;
+
+  if (!productId || quantity === undefined) {
+    return res.status(400).json({ error: "Invalid product ID or quantity" });
+  }
+
+  try {
+    const db = await getDatabase();
+    const product = await db.collection("products").findOne({ productId });
+
+    if (!product) {
+      return res.status(404).json({ error: `Product with ID ${productId} not found` });
+    }
+
+    // Convert existing and new quantity to numbers, then store as a string
+    const newQuantity = String(Number(product.quantity) + Number(quantity));
+
+    await db.collection("products").updateOne(
+      { productId },
+      { $set: { quantity: newQuantity } }
+    );
+
+    res.json({ 
+      message: `Quantity updated successfully! New quantity: ${newQuantity}`, 
+      updatedQuantity: newQuantity 
+    });
+  } catch (err) {
+    console.error("Error updating quantity:", err);
+    res.status(500).json({ error: "Server error while updating quantity" });
+  }
+});
+
+
+app.post("/api/products/add", async (req, res) => {
+    const { productId, quantity } = req.body;
+
+    if (!productId || quantity === undefined) {
+        return res.status(400).json({ error: "Product ID and Quantity are required" });
+    }
+
+    try {
+        const db = await getDatabase(); // Ensure database connection
+        const existingProduct = await db.collection("products").findOne({ productId });
+
+        if (existingProduct) {
+            return res.status(400).json({ error: "Product ID already exists" });
+        }
+
+        await db.collection("products").insertOne({
+            productId,
+            quantity: String(quantity) // Store quantity as string
+        });
+
+        res.json({ message: "Product added successfully!" });
+    } catch (err) {
+        console.error("Error adding product:", err);
+        res.status(500).json({ error: "Server error while adding product" });
+    }
+});
+
+
+
+
 const uri = "mongodb+srv://Dhanush2002:Dhanush2002@cluster0.ool5p.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 
 // Connect to MongoDB
